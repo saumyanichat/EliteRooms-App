@@ -45,4 +45,61 @@ router.post("/register", async (req, res) => {
     }
 });
 
+
+router.post("/login", async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        // Find user by email
+        const user = await User.findOne({ email }); // find that thier is existing email or not in DB
+        if (!user){
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        // Compare passwords
+        const isMatch= await bcrypt.compare(password, user.password);
+        if(!isMatch){
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        const existingProfile = await Profile.findOne({ user: user._id });
+        if (!existingProfile) {
+            // Create profile for the user if it doesn't exist
+            const userProfile = new Profile({
+                user: user._id,
+                bio: "",
+                location: "",
+                website: "",
+                gender: "",
+                dateOfBirth: null,
+                profilePicture: "",
+                createdAt: Date.now(),
+            });
+            await userProfile.save();
+        }
+        // Generate JWT token
+        const token =jwt.sign(
+            {
+                id:user._id,
+                isHost:isSecureContext.isHost
+,
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
+        );
+
+        res.json({
+            user:{
+                id:user._id,name:user.name,isHost:user.isHost,
+            },
+        });
+        res.status(200).json({ message: "Login successful", token });
+    } catch (error) {
+        console.error("Error in /login:", error); // Debug log
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+
+
 module.exports = router;

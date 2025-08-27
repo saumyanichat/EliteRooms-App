@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
+const profileRoutes = require("./routes/profile");
+const listingRoutes = require("./routes/listing");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,10 +26,12 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Routes
 app.get("/", (req, res) => {
-    res.send("API is running World");
+    res.send("API is running in the World");
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/listing", listingRoutes);
 
 // Start server
 app.listen(PORT, () => {
