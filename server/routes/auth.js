@@ -10,9 +10,18 @@ router.post("/register", async (req, res) => {
     const { name, email, password } = req.body;
 
     try {
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: "Name, email and password are required" });
+        }
+
+        const existing = await User.findOne({ email });
+        if (existing) {
+            return res.status(409).json({ error: "Email already registered" });
+        }
+
         // Generate salt and hash password
         const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt); 
+        const hashedPassword = await bcrypt.hash(password, salt);
         
         // Create new user
         const user = new User({
@@ -22,26 +31,26 @@ router.post("/register", async (req, res) => {
         });
         await user.save();
         
-        // Create profile for the user
+        // Create profile for the user (omit invalid gender value)
         const userProfile = new Profile({
             user: user._id,
             bio: "",
             location: "",
             website: "",
-            gender: "",
             dateOfBirth: null,
             profilePicture: "",
-            createdAt: Date.now(),
         });
         await userProfile.save();
-        
-        // Generate JWT token
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        res.status(201).json({ message: "User registered successfully", token });
+        const token = jwt.sign({ id: user._id, isHost: user.isHost }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+        return res.status(201).json({ message: "User registered successfully", token });
     } catch (error) {
-        console.error("Error in /register:", error); // Debug log
-        res.status(500).json({ error: "Internal server error" });
+        console.error("Error in /register:", error);
+        if (error && error.code === 11000) {
+            return res.status(409).json({ error: "Email already registered" });
+        }
+        return res.status(500).json({ error: "Internal server error" });
     }
 });
 
@@ -78,22 +87,24 @@ router.post("/login", async (req, res) => {
             await userProfile.save();
         }
         // Generate JWT token
-        const token =jwt.sign(
+        const token = jwt.sign(
             {
-                id:user._id,
-                isHost:isSecureContext.isHost
-,
+                id: user._id,
+                isHost: user.isHost,
             },
             process.env.JWT_SECRET,
             { expiresIn: '1d' }
         );
 
-        res.json({
-            user:{
-                id:user._id,name:user.name,isHost:user.isHost,
+        return res.status(200).json({
+            message: "Login successful",
+            token,
+            user: {
+                id: user._id,
+                name: user.name,
+                isHost: user.isHost,
             },
         });
-        res.status(200).json({ message: "Login successful", token });
     } catch (error) {
         console.error("Error in /login:", error); // Debug log
         res.status(500).json({ error: "Internal server error" });

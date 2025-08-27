@@ -100,6 +100,18 @@ router.delete("/:id", auth, async (req, res) => {
     }
 });
 
+router.get("/my-listing", auth, async (req, res) => {
+    try {
+        if(!req.user.isHost) {
+            return res.status(403).json({ error: "Only host can view their listings" });
+        }
+        const listings = await Listing.find({ hostId: req.user.id });
+        res.json(listings);
+    } catch (error) {
+        console.error("Error in /api/listing/my-listing:", error);
+        res.status(500).json({ error: "Error in fetching the listings" });
+    }
+});
 
 module.exports = router;
 
